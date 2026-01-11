@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A backend-only FastAPI service deployed on Vercel using serverless functions. The root endpoint (`/`) redirects to `/docs` for immediate API documentation access via Swagger UI.
 
+## Prerequisites
+
+This project uses [uv](https://github.com/astral-sh/uv) for fast Python package management. Install it with:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 ## Commands
 
 ### Make Commands (Recommended)
@@ -36,13 +43,13 @@ make install
 make clean
 
 # Run fmt, lint, and test
-make all
+make ci
 ```
 
 ### Manual Commands
 ```bash
 # Install package with dev dependencies
-pip3 install -e ".[dev]"
+uv pip install -e ".[dev]"
 
 # Run local development server
 python3 -m uvicorn watersvc.app:app --reload

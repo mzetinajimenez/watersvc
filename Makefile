@@ -11,12 +11,11 @@ help:
 	@echo "  make test    - Run tests with pytest"
 	@echo "  make install - Install package with dev dependencies"
 	@echo "  make clean   - Remove venv and temporary files"
-	@echo "  make all     - Run fmt, lint, and test"
+	@echo "  make ci      - Run fmt, lint, and test"
 
 venv:
-	python3 -m venv .venv
-	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install -e ".[dev]"
+	uv venv
+	uv pip install -e ".[dev]"
 	@echo ""
 	@echo "Virtual environment created. Activate with:"
 	@echo "  source .venv/bin/activate"
@@ -35,7 +34,7 @@ test:
 	python3 -m pytest
 
 install:
-	pip install -e ".[dev]"
+	uv pip install -e ".[dev]"
 
 clean:
 	rm -rf .venv/
@@ -44,4 +43,4 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	rm -rf .vercel/
 
-all: fmt lint test
+ci: fmt lint test
