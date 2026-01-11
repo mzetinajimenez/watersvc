@@ -12,7 +12,58 @@ https://vercel-plus-fastapi.vercel.app/
 
 This example uses the Asynchronous Server Gateway Interface (ASGI) with FastAPI to enable handling requests on Vercel with Serverless Functions.
 
-## Running Locally
+## Development Setup
+
+### Quick Start with Make
+
+This project includes a Makefile for convenient development commands:
+
+```bash
+# Show all available commands
+make
+
+# Create virtual environment and install dependencies
+make venv
+
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Run development server with hot reload
+make run
+
+# Format code
+make fmt
+
+# Lint code
+make lint
+
+# Run tests
+make test
+
+# Clean temporary files
+make clean
+```
+
+### Manual Setup
+
+**Install Dependencies:**
+
+```bash
+# Install package in editable mode with dev dependencies
+pip install -e ".[dev]"
+```
+
+**Running Locally:**
+
+Option 1: Using uvicorn (recommended for development)
+
+```bash
+uvicorn watersvc.app:app --reload
+```
+
+Your FastAPI application is now available at `http://localhost:8000`. Visit `http://localhost:8000/docs` for interactive API documentation.
+
+Option 2: Using Vercel CLI (production-like environment)
 
 ```bash
 npm i -g vercel
@@ -20,6 +71,25 @@ vercel dev
 ```
 
 Your FastAPI application is now available at `http://localhost:3000`.
+
+**Running Tests:**
+
+```bash
+pytest
+```
+
+**Linting and Formatting:**
+
+```bash
+# Check for linting issues
+ruff check src/
+
+# Format code
+ruff format src/
+
+# Type check with mypy
+mypy src/
+```
 
 ## One-Click Deploy
 
