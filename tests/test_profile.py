@@ -1,0 +1,73 @@
+"""Integration tests for profile API routes."""
+
+PROFILE_PAYLOAD = {
+    "username": "testuser",
+    "email": "test@example.com",
+    "daily_goal_oz": 64.0,
+    "preferred_unit": "oz",
+    "timezone": "UTC",
+}
+
+
+async def test_initialize_profile(client):
+    response = await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["username"] == "testuser"
+    assert data["email"] == "test@example.com"
+    assert data["daily_goal_oz"] == 64.0
+    assert "user_id" in data
+    assert "created_at" in data
+
+
+async def test_initialize_profile_duplicate(client):
+    await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    response = await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    assert response.status_code == 400
+
+
+async def test_get_profile_not_found(client):
+    response = await client.get("/api/profile")
+    assert response.status_code == 404
+
+
+async def test_get_profile(client):
+    await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    response = await client.get("/api/profile")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "testuser"
+
+
+async def test_put_profile(client):
+    await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    response = await client.put(
+        "/api/profile",
+        json={
+            "username": "newuser",
+            "email": "new@example.com",
+            "daily_goal_oz": 80.0,
+            "preferred_unit": "ml",
+            "timezone": "America/New_York",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "newuser"
+    assert data["email"] == "new@example.com"
+    assert data["daily_goal_oz"] == 80.0
+
+
+async def test_patch_profile(client):
+    await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    response = await client.patch("/api/profile", json={"username": "patcheduser"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "patcheduser"
+    assert data["email"] == "test@example.com"  # unchanged
+
+
+async def test_patch_profile_empty_body(client):
+    await client.post("/api/profile/initialize", json=PROFILE_PAYLOAD)
+    response = await client.patch("/api/profile", json={})
+    assert response.status_code == 400
