@@ -99,3 +99,13 @@ Routes are defined in `src/watersvc/routes.py` using FastAPI's `APIRouter`, then
 
 ### Testing
 Tests use FastAPI's `TestClient` (HTTPX-based) defined in `tests/conftest.py` as a pytest fixture. All test files are in the `tests/` directory and follow the `test_*.py` naming convention.
+
+Unit tests use `mongomock-motor` (in-memory MongoDB) and run by default. Integration tests hit real Atlas and are excluded from `make test` — run with `make integration`.
+
+#### Integration test prerequisites
+1. **Atlas IP allowlist** — add your machine's IP in Atlas → Network Access
+2. **macOS SSL certificates** — Python installed via python.org doesn't trust the system keychain by default. If you see `CERTIFICATE_VERIFY_FAILED`, run:
+   ```
+   open /Applications/Python\ 3.13/Install\ Certificates.command
+   ```
+   This installs certifi as the trusted CA bundle for that Python install. Without it, Motor will fail the TLS handshake even with a valid URI and whitelisted IP.
