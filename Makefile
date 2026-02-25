@@ -1,4 +1,4 @@
-.PHONY: help venv fmt lint clean test install run all
+.PHONY: help venv fmt lint clean test integration install run all ci
 
 # Default target
 help:
@@ -33,6 +33,9 @@ lint:
 test:
 	python3 -m pytest
 
+integration:
+	python3 -m pytest -m integration -v
+
 install:
 	uv pip install -e ".[dev]"
 
@@ -43,4 +46,4 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	rm -rf .vercel/
 
-ci: fmt lint test
+ci: fmt lint test integration
