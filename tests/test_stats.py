@@ -1,5 +1,8 @@
 """Integration tests for stats API routes."""
 
+from datetime import datetime, timezone
+from unittest.mock import patch
+
 import pytest
 
 
@@ -13,14 +16,11 @@ async def test_daily_stats_no_intakes(client):
 
 
 async def test_daily_stats_with_intakes(client):
-    await client.post(
-        "/api/intakes",
-        json={"amount": 16.0, "unit": "oz", "timestamp": "2024-01-15T10:00:00Z"},
-    )
-    await client.post(
-        "/api/intakes",
-        json={"amount": 24.0, "unit": "oz", "timestamp": "2024-01-15T14:00:00Z"},
-    )
+    with patch("watersvc.routers.intakes.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        await client.post("/api/intakes", json={"amount": 16.0, "unit": "oz"})
+        mock_dt.now.return_value = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
+        await client.post("/api/intakes", json={"amount": 24.0, "unit": "oz"})
     response = await client.get("/api/stats/daily?date=2024-01-15")
     assert response.status_code == 200
     data = response.json()
@@ -30,14 +30,11 @@ async def test_daily_stats_with_intakes(client):
 
 
 async def test_daily_stats_with_date_param(client):
-    await client.post(
-        "/api/intakes",
-        json={"amount": 8.0, "unit": "oz", "timestamp": "2024-01-15T10:00:00Z"},
-    )
-    await client.post(
-        "/api/intakes",
-        json={"amount": 12.0, "unit": "oz", "timestamp": "2024-01-16T10:00:00Z"},
-    )
+    with patch("watersvc.routers.intakes.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
+        mock_dt.now.return_value = datetime(2024, 1, 16, 10, 0, 0, tzinfo=timezone.utc)
+        await client.post("/api/intakes", json={"amount": 12.0, "unit": "oz"})
     response = await client.get("/api/stats/daily?date=2024-01-15")
     data = response.json()
     assert data["total_oz"] == pytest.approx(8.0)

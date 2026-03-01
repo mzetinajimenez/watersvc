@@ -1,5 +1,5 @@
-PYTHON ?= python3
 VENV   ?= .venv
+PYTHON ?= $(VENV)/bin/python3
 
 .PHONY: help venv fmt lint clean test integration install run all ci
 
@@ -34,10 +34,10 @@ lint:
 	$(PYTHON) -m mypy src/
 
 test:
-	$(PYTHON) -m pytest
+	$(PYTHON) -m pytest $(ARGS)
 
 integration:
-	$(PYTHON) -m pytest -m integration -v
+	$(PYTHON) -m pytest -m integration -v $(ARGS)
 
 install:
 	uv pip install -e ".[dev]"

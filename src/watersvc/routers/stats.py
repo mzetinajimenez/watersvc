@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
-from watersvc.models.responses import (
+from watersvc.utils.schemas import (
     DailyBreakdown,
     DailyStatsResponse,
     IntakeResponse,

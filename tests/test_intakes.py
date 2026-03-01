@@ -1,5 +1,8 @@
 """Integration tests for intakes API routes."""
 
+from datetime import datetime, timezone
+from unittest.mock import patch
+
 import pytest
 
 
@@ -37,14 +40,13 @@ async def test_list_intakes(client):
 
 
 async def test_list_intakes_filter_by_date(client):
-    await client.post(
-        "/api/intakes",
-        json={"amount": 8.0, "unit": "oz", "timestamp": "2024-01-15T10:00:00Z"},
-    )
-    await client.post(
-        "/api/intakes",
-        json={"amount": 12.0, "unit": "oz", "timestamp": "2024-01-16T10:00:00Z"},
-    )
+    with patch("watersvc.routers.intakes.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
+
+        mock_dt.now.return_value = datetime(2024, 1, 16, 10, 0, 0, tzinfo=timezone.utc)
+        await client.post("/api/intakes", json={"amount": 12.0, "unit": "oz"})
+
     response = await client.get("/api/intakes?date=2024-01-15")
     assert response.status_code == 200
     data = response.json()

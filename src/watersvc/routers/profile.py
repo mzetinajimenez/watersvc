@@ -5,9 +5,13 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
-from watersvc.models.documents import UserPreferences, UserProfileDocument
-from watersvc.models.requests import InitializeProfileRequest, UpdateProfileRequest
-from watersvc.models.responses import ProfileResponse
+from watersvc.utils.schemas import (
+    InitializeProfileRequest,
+    ProfileResponse,
+    UpdateProfileRequest,
+    UserPreferences,
+    UserProfileDocument,
+)
 
 router = APIRouter()
 

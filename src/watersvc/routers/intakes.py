@@ -1,6 +1,7 @@
 """Water intake CRUD API routes."""
 
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from bson.errors import InvalidId
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,9 +9,12 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
-from watersvc.models.documents import WaterIntakeDocument
-from watersvc.models.requests import CreateIntakeRequest, UpdateIntakeRequest
-from watersvc.models.responses import IntakeResponse
+from watersvc.utils.schemas import (
+    CreateIntakeRequest,
+    IntakeResponse,
+    UpdateIntakeRequest,
+    WaterIntakeDocument,
+)
 from watersvc.utils.conversions import convert_to_oz
 from watersvc.utils.timezone import get_local_date_time
 
@@ -40,14 +44,7 @@ async def create_intake(
     service = WaterIntakeService(db)
     timezone = await get_user_timezone(db)
 
-    # Use provided timestamp or current time
-    timestamp = request.timestamp if request.timestamp else datetime.utcnow()
-
-    # Ensure timestamp is timezone-aware
-    if timestamp.tzinfo is None:
-        from zoneinfo import ZoneInfo
-
-        timestamp = timestamp.replace(tzinfo=ZoneInfo("UTC"))
+    timestamp = datetime.now(tz=ZoneInfo("UTC"))
 
     # Convert amount to ounces
     amount_oz = convert_to_oz(request.amount, request.unit)
@@ -154,13 +151,9 @@ async def update_intake_full(
     if not existing_intake:
         raise HTTPException(status_code=404, detail="Intake entry not found")
 
-    # Use provided timestamp or keep existing
-    timestamp = request.timestamp if request.timestamp else existing_intake["timestamp"]
-
-    # Ensure timestamp is timezone-aware
+    # Preserve the original intake timestamp
+    timestamp = existing_intake["timestamp"]
     if timestamp.tzinfo is None:
-        from zoneinfo import ZoneInfo
-
         timestamp = timestamp.replace(tzinfo=ZoneInfo("UTC"))
 
     # Convert amount to ounces
@@ -203,7 +196,6 @@ async def update_intake_partial(
     Updates only the provided fields, leaving others unchanged.
     """
     service = WaterIntakeService(db)
-    timezone = await get_user_timezone(db)
 
     # Check if intake exists
     try:
@@ -226,19 +218,6 @@ async def update_intake_partial(
         update_data["amount_oz"] = convert_to_oz(amount, unit)
         update_data["original_amount"] = amount
         update_data["original_unit"] = unit
-
-    # If timestamp is provided, recalculate local_date and local_time
-    if request.timestamp is not None:
-        timestamp = request.timestamp
-        if timestamp.tzinfo is None:
-            from zoneinfo import ZoneInfo
-
-            timestamp = timestamp.replace(tzinfo=ZoneInfo("UTC"))
-
-        local_date, local_time = get_local_date_time(timestamp, timezone)
-        update_data["timestamp"] = timestamp
-        update_data["local_date"] = local_date
-        update_data["local_time"] = local_time
 
     if request.notes is not None:
         update_data["notes"] = request.notes
