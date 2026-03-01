@@ -1,3 +1,6 @@
+PYTHON ?= python3
+VENV   ?= .venv
+
 .PHONY: help venv fmt lint clean test integration install run all ci
 
 # Default target
@@ -14,33 +17,33 @@ help:
 	@echo "  make ci      - Run fmt, lint, and test"
 
 venv:
-	uv venv
+	uv venv $(VENV)
 	uv pip install -e ".[dev]"
 	@echo ""
 	@echo "Virtual environment created. Activate with:"
-	@echo "  source .venv/bin/activate"
+	@echo "  source $(VENV)/bin/activate"
 
 run:
-	python3 -m uvicorn watersvc.app:app --reload
+	$(PYTHON) -m uvicorn watersvc.app:app --reload
 
 fmt:
-	python3 -m ruff format src/ tests/ api/
+	$(PYTHON) -m ruff format src/ tests/ api/
 
 lint:
-	python3 -m ruff check src/ tests/ api/
-	python3 -m mypy src/
+	$(PYTHON) -m ruff check src/ tests/ api/
+	$(PYTHON) -m mypy src/
 
 test:
-	python3 -m pytest
+	$(PYTHON) -m pytest
 
 integration:
-	python3 -m pytest -m integration -v
+	$(PYTHON) -m pytest -m integration -v
 
 install:
 	uv pip install -e ".[dev]"
 
 clean:
-	rm -rf .venv/
+	rm -rf $(VENV)/
 	rm -rf __pycache__/ .pytest_cache/ .ruff_cache/
 	rm -rf build/ dist/ *.egg-info/ src/*.egg-info/
 	find . -type f -name "*.pyc" -delete
