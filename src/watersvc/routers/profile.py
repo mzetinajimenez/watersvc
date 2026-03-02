@@ -16,29 +16,23 @@ from watersvc.utils.schemas import (
 router = APIRouter()
 
 
-@router.post("/profile/initialize", response_model=ProfileResponse, status_code=201)
-async def initialize_profile(
+@router.post("/profile", response_model=ProfileResponse, status_code=201)
+async def create_profile(
     request: InitializeProfileRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    """
-    Initialize user profile (one-time setup).
-
-    Creates a new user profile with the provided information.
-    Only one profile is allowed for the single-user app.
-    """
+    """Create a new user profile."""
     service = WaterIntakeService(db)
 
-    # Check if profile already exists
-    existing_profile = await service.get_profile()
+    existing_profile = await service.get_profile(request.user_id)
     if existing_profile:
         raise HTTPException(
             status_code=400,
-            detail="Profile already exists. Use PATCH /profile to update.",
+            detail="Profile already exists. Use PATCH /profile/{user_id} to update.",
         )
 
-    # Create profile document
     profile_data = UserProfileDocument(
+        user_id=request.user_id,
         username=request.username,
         email=request.email,
         daily_goal_oz=request.daily_goal_oz,
@@ -48,48 +42,39 @@ async def initialize_profile(
         ),
     )
 
-    # Insert into database
     created_profile = await service.create_profile(profile_data.model_dump())
 
     return ProfileResponse(**created_profile)
 
 
-@router.get("/profile", response_model=ProfileResponse)
-async def get_profile(db: AsyncIOMotorDatabase = Depends(get_database)):
-    """Get current user profile."""
+@router.get("/profile/{user_id}", response_model=ProfileResponse)
+async def get_profile(
+    user_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Get user profile."""
     service = WaterIntakeService(db)
 
-    profile = await service.get_profile()
+    profile = await service.get_profile(user_id)
     if not profile:
-        raise HTTPException(
-            status_code=404,
-            detail="Profile not found. Use POST /profile/initialize to create.",
-        )
+        raise HTTPException(status_code=404, detail="Profile not found.")
 
     return ProfileResponse(**profile)
 
 
-@router.put("/profile", response_model=ProfileResponse)
+@router.put("/profile/{user_id}", response_model=ProfileResponse)
 async def update_profile_full(
+    user_id: str,
     request: InitializeProfileRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    """
-    Update user profile (full update).
-
-    Replaces all profile fields with the provided data.
-    """
+    """Update user profile (full update)."""
     service = WaterIntakeService(db)
 
-    # Check if profile exists
-    existing_profile = await service.get_profile()
+    existing_profile = await service.get_profile(user_id)
     if not existing_profile:
-        raise HTTPException(
-            status_code=404,
-            detail="Profile not found. Use POST /profile/initialize to create.",
-        )
+        raise HTTPException(status_code=404, detail="Profile not found.")
 
-    # Update profile
     update_data = {
         "username": request.username,
         "email": request.email,
@@ -100,34 +85,26 @@ async def update_profile_full(
         ).model_dump(),
     }
 
-    updated_profile = await service.update_profile("default", update_data)
+    updated_profile = await service.update_profile(user_id, update_data)
     if not updated_profile:
         raise HTTPException(status_code=500, detail="Failed to update profile")
 
     return ProfileResponse(**updated_profile)
 
 
-@router.patch("/profile", response_model=ProfileResponse)
+@router.patch("/profile/{user_id}", response_model=ProfileResponse)
 async def update_profile_partial(
+    user_id: str,
     request: UpdateProfileRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    """
-    Update user profile (partial update).
-
-    Updates only the provided fields, leaving others unchanged.
-    """
+    """Update user profile (partial update)."""
     service = WaterIntakeService(db)
 
-    # Check if profile exists
-    existing_profile = await service.get_profile()
+    existing_profile = await service.get_profile(user_id)
     if not existing_profile:
-        raise HTTPException(
-            status_code=404,
-            detail="Profile not found. Use POST /profile/initialize to create.",
-        )
+        raise HTTPException(status_code=404, detail="Profile not found.")
 
-    # Build update data with only provided fields
     update_data: dict[str, object] = {}
     if request.username is not None:
         update_data["username"] = request.username
@@ -141,8 +118,23 @@ async def update_profile_partial(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    updated_profile = await service.update_profile("default", update_data)
+    updated_profile = await service.update_profile(user_id, update_data)
     if not updated_profile:
         raise HTTPException(status_code=500, detail="Failed to update profile")
 
     return ProfileResponse(**updated_profile)
+
+
+@router.delete("/profile/{user_id}", status_code=204)
+async def delete_profile(
+    user_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Delete user profile."""
+    service = WaterIntakeService(db)
+
+    deleted = await service.delete_profile(user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+
+    return None

@@ -17,7 +17,7 @@ from watersvc.utils.timezone import get_date_n_days_ago, get_today_local
 router = APIRouter()
 
 
-async def get_user_preferences(db: AsyncIOMotorDatabase) -> tuple[str, float, str]:
+async def get_user_preferences(db: AsyncIOMotorDatabase, user_id: str) -> tuple[str, float, str]:
     """
     Get user preferences from profile.
 
@@ -25,7 +25,7 @@ async def get_user_preferences(db: AsyncIOMotorDatabase) -> tuple[str, float, st
         Tuple of (timezone, daily_goal_oz, preferred_unit)
     """
     service = WaterIntakeService(db)
-    profile = await service.get_profile()
+    profile = await service.get_profile(user_id)
 
     if not profile:
         # Return defaults if no profile exists
@@ -40,6 +40,7 @@ async def get_user_preferences(db: AsyncIOMotorDatabase) -> tuple[str, float, st
 
 @router.get("/stats/daily", response_model=DailyStatsResponse)
 async def get_daily_stats(
+    user_id: str = Query(...),
     date: str | None = Query(None, description="Date in YYYY-MM-DD format (default: today)"),
     unit: str | None = Query(
         None, description="Unit for display values (default: user preference)"
@@ -55,7 +56,7 @@ async def get_daily_stats(
     service = WaterIntakeService(db)
 
     # Get user preferences
-    timezone, daily_goal_oz, preferred_unit = await get_user_preferences(db)
+    timezone, daily_goal_oz, preferred_unit = await get_user_preferences(db, user_id)
 
     # Use provided unit or user preference
     display_unit = unit if unit else preferred_unit
@@ -64,7 +65,7 @@ async def get_daily_stats(
     target_date = date if date else get_today_local(timezone)
 
     # Aggregate daily total
-    total_oz, entry_count = await service.aggregate_daily_total("default", target_date)
+    total_oz, entry_count = await service.aggregate_daily_total(user_id, target_date)
 
     # Calculate progress percentage
     progress_percent = (total_oz / daily_goal_oz * 100) if daily_goal_oz > 0 else 0.0
@@ -76,7 +77,7 @@ async def get_daily_stats(
     # Get individual entries if requested
     entries = None
     if include_entries:
-        intakes = await service.list_intakes(local_date=target_date, limit=500)
+        intakes = await service.list_intakes(user_id=user_id, local_date=target_date, limit=500)
         entries = [
             IntakeResponse(
                 id=str(intake["_id"]),
@@ -100,6 +101,7 @@ async def get_daily_stats(
 
 @router.get("/stats/weekly", response_model=PeriodStatsResponse)
 async def get_weekly_stats(
+    user_id: str = Query(...),
     date: str | None = Query(None, description="Reference date (default: today)"),
     unit: str | None = Query(
         None, description="Unit for display values (default: user preference)"
@@ -114,7 +116,7 @@ async def get_weekly_stats(
     service = WaterIntakeService(db)
 
     # Get user preferences
-    timezone, daily_goal_oz, preferred_unit = await get_user_preferences(db)
+    timezone, daily_goal_oz, preferred_unit = await get_user_preferences(db, user_id)
 
     # Use provided unit or user preference
     display_unit = unit if unit else preferred_unit
@@ -124,7 +126,7 @@ async def get_weekly_stats(
     start_date = get_date_n_days_ago(end_date, 6)  # Last 7 days including today
 
     # Aggregate period stats
-    daily_stats = await service.aggregate_period_stats("default", start_date, end_date)
+    daily_stats = await service.aggregate_period_stats(user_id, start_date, end_date)
 
     # Calculate totals and averages
     total_oz = sum(day["total_oz"] for day in daily_stats)
@@ -178,6 +180,7 @@ async def get_weekly_stats(
 
 @router.get("/stats/monthly", response_model=PeriodStatsResponse)
 async def get_monthly_stats(
+    user_id: str = Query(...),
     date: str | None = Query(None, description="Reference date (default: today)"),
     unit: str | None = Query(
         None, description="Unit for display values (default: user preference)"
@@ -192,7 +195,7 @@ async def get_monthly_stats(
     service = WaterIntakeService(db)
 
     # Get user preferences
-    timezone, daily_goal_oz, preferred_unit = await get_user_preferences(db)
+    timezone, daily_goal_oz, preferred_unit = await get_user_preferences(db, user_id)
 
     # Use provided unit or user preference
     display_unit = unit if unit else preferred_unit
@@ -202,7 +205,7 @@ async def get_monthly_stats(
     start_date = get_date_n_days_ago(end_date, 29)  # Last 30 days including today
 
     # Aggregate period stats
-    daily_stats = await service.aggregate_period_stats("default", start_date, end_date)
+    daily_stats = await service.aggregate_period_stats(user_id, start_date, end_date)
 
     # Calculate totals and averages
     total_oz = sum(day["total_oz"] for day in daily_stats)

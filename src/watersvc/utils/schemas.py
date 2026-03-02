@@ -21,7 +21,7 @@ class UserPreferences(BaseModel):
 
 
 class UserProfileDocument(BaseModel):
-    user_id: str = "default"
+    user_id: str
     username: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=3, max_length=255)
     daily_goal_oz: float = Field(gt=0, le=1000)
@@ -31,7 +31,7 @@ class UserProfileDocument(BaseModel):
 
 
 class WaterIntakeDocument(BaseModel):
-    user_id: str = "default"
+    user_id: str
     amount_oz: float = Field(gt=0, le=500)
     original_amount: float = Field(gt=0, le=500)
     original_unit: Unit
@@ -48,6 +48,7 @@ class WaterIntakeDocument(BaseModel):
 
 
 class InitializeProfileRequest(BaseModel):
+    user_id: str
     username: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=3, max_length=255)
     daily_goal_oz: float = Field(default=64.0, gt=0, le=1000)

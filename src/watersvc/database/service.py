@@ -16,7 +16,7 @@ class WaterIntakeService:
         self.profiles = db.user_profile
 
     # Profile operations
-    async def get_profile(self, user_id: str = "default") -> dict | None:
+    async def get_profile(self, user_id: str) -> dict | None:
         """Get user profile by user_id."""
         return await self.profiles.find_one({"user_id": user_id})
 
@@ -36,6 +36,11 @@ class WaterIntakeService:
         )
         return result
 
+    async def delete_profile(self, user_id: str) -> bool:
+        """Delete user profile. Returns True if deleted, False if not found."""
+        result = await self.profiles.delete_one({"user_id": user_id})
+        return result.deleted_count == 1
+
     # Intake CRUD operations
     async def create_intake(self, intake_data: dict) -> dict:
         """Insert new water intake entry."""
@@ -43,12 +48,12 @@ class WaterIntakeService:
         intake_data["_id"] = result.inserted_id
         return intake_data
 
-    async def get_intake(self, intake_id: str, user_id: str = "default") -> dict | None:
+    async def get_intake(self, intake_id: str, user_id: str) -> dict | None:
         """Get single intake entry by ID."""
         return await self.intakes.find_one({"_id": ObjectId(intake_id), "user_id": user_id})
 
     async def update_intake(
-        self, intake_id: str, update_data: dict, user_id: str = "default"
+        self, intake_id: str, update_data: dict, user_id: str
     ) -> dict | None:
         """Update water intake entry."""
         update_data["updated_at"] = datetime.utcnow()
@@ -59,14 +64,14 @@ class WaterIntakeService:
         )
         return result
 
-    async def delete_intake(self, intake_id: str, user_id: str = "default") -> bool:
+    async def delete_intake(self, intake_id: str, user_id: str) -> bool:
         """Delete water intake entry."""
         result = await self.intakes.delete_one({"_id": ObjectId(intake_id), "user_id": user_id})
         return result.deleted_count > 0
 
     async def list_intakes(
         self,
-        user_id: str = "default",
+        user_id: str,
         local_date: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
@@ -103,7 +108,7 @@ class WaterIntakeService:
 
     async def count_intakes(
         self,
-        user_id: str = "default",
+        user_id: str,
         local_date: str | None = None,
     ) -> int:
         """Count total intake entries for a user or specific date."""

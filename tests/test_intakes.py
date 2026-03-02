@@ -5,9 +5,12 @@ from unittest.mock import patch
 
 import pytest
 
+USER_ID = "testuser"
+BASE = f"?user_id={USER_ID}"
+
 
 async def test_create_intake_oz(client):
-    response = await client.post("/api/intakes", json={"amount": 16.0, "unit": "oz"})
+    response = await client.post(f"/api/intakes{BASE}", json={"amount": 16.0, "unit": "oz"})
     assert response.status_code == 201
     data = response.json()
     assert data["amount_oz"] == pytest.approx(16.0)
@@ -17,7 +20,7 @@ async def test_create_intake_oz(client):
 
 
 async def test_create_intake_ml(client):
-    response = await client.post("/api/intakes", json={"amount": 300.0, "unit": "ml"})
+    response = await client.post(f"/api/intakes{BASE}", json={"amount": 300.0, "unit": "ml"})
     assert response.status_code == 201
     data = response.json()
     # 300 ml * 0.033814 oz/ml
@@ -26,15 +29,15 @@ async def test_create_intake_ml(client):
 
 
 async def test_list_intakes_empty(client):
-    response = await client.get("/api/intakes")
+    response = await client.get(f"/api/intakes{BASE}")
     assert response.status_code == 200
     assert response.json() == []
 
 
 async def test_list_intakes(client):
-    await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
-    await client.post("/api/intakes", json={"amount": 12.0, "unit": "oz"})
-    response = await client.get("/api/intakes")
+    await client.post(f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz"})
+    await client.post(f"/api/intakes{BASE}", json={"amount": 12.0, "unit": "oz"})
+    response = await client.get(f"/api/intakes{BASE}")
     assert response.status_code == 200
     assert len(response.json()) == 2
 
@@ -42,12 +45,12 @@ async def test_list_intakes(client):
 async def test_list_intakes_filter_by_date(client):
     with patch("watersvc.routers.intakes.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
-        await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
+        await client.post(f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz"})
 
         mock_dt.now.return_value = datetime(2024, 1, 16, 10, 0, 0, tzinfo=timezone.utc)
-        await client.post("/api/intakes", json={"amount": 12.0, "unit": "oz"})
+        await client.post(f"/api/intakes{BASE}", json={"amount": 12.0, "unit": "oz"})
 
-    response = await client.get("/api/intakes?date=2024-01-15")
+    response = await client.get(f"/api/intakes{BASE}&date=2024-01-15")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -55,28 +58,28 @@ async def test_list_intakes_filter_by_date(client):
 
 
 async def test_get_intake_by_id(client):
-    create_resp = await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
+    create_resp = await client.post(f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz"})
     intake_id = create_resp.json()["id"]
-    response = await client.get(f"/api/intakes/{intake_id}")
+    response = await client.get(f"/api/intakes/{intake_id}{BASE}")
     assert response.status_code == 200
     assert response.json()["id"] == intake_id
 
 
 async def test_get_intake_not_found(client):
-    response = await client.get("/api/intakes/000000000000000000000001")
+    response = await client.get(f"/api/intakes/000000000000000000000001{BASE}")
     assert response.status_code == 404
 
 
 async def test_get_intake_invalid_id(client):
-    response = await client.get("/api/intakes/not-an-objectid")
+    response = await client.get(f"/api/intakes/not-an-objectid{BASE}")
     assert response.status_code == 400
 
 
 async def test_put_intake(client):
-    create_resp = await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
+    create_resp = await client.post(f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz"})
     intake_id = create_resp.json()["id"]
     response = await client.put(
-        f"/api/intakes/{intake_id}",
+        f"/api/intakes/{intake_id}{BASE}",
         json={"amount": 16.0, "unit": "oz"},
     )
     assert response.status_code == 200
@@ -87,11 +90,11 @@ async def test_put_intake(client):
 
 async def test_patch_intake(client):
     create_resp = await client.post(
-        "/api/intakes", json={"amount": 8.0, "unit": "oz", "notes": "morning"}
+        f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz", "notes": "morning"}
     )
     intake_id = create_resp.json()["id"]
     response = await client.patch(
-        f"/api/intakes/{intake_id}",
+        f"/api/intakes/{intake_id}{BASE}",
         json={"notes": "updated note"},
     )
     assert response.status_code == 200
@@ -101,9 +104,9 @@ async def test_patch_intake(client):
 
 
 async def test_delete_intake(client):
-    create_resp = await client.post("/api/intakes", json={"amount": 8.0, "unit": "oz"})
+    create_resp = await client.post(f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz"})
     intake_id = create_resp.json()["id"]
-    delete_resp = await client.delete(f"/api/intakes/{intake_id}")
+    delete_resp = await client.delete(f"/api/intakes/{intake_id}{BASE}")
     assert delete_resp.status_code == 204
-    get_resp = await client.get(f"/api/intakes/{intake_id}")
+    get_resp = await client.get(f"/api/intakes/{intake_id}{BASE}")
     assert get_resp.status_code == 404

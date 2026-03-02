@@ -21,10 +21,10 @@ from watersvc.utils.timezone import get_local_date_time
 router = APIRouter()
 
 
-async def get_user_timezone(db: AsyncIOMotorDatabase) -> str:
+async def get_user_timezone(db: AsyncIOMotorDatabase, user_id: str) -> str:
     """Get user's timezone from profile, fallback to UTC."""
     service = WaterIntakeService(db)
-    profile = await service.get_profile()
+    profile = await service.get_profile(user_id)
     if profile and "preferences" in profile:
         return profile["preferences"].get("timezone", "UTC")
     return "UTC"
@@ -33,6 +33,7 @@ async def get_user_timezone(db: AsyncIOMotorDatabase) -> str:
 @router.post("/intakes", response_model=IntakeResponse, status_code=201)
 async def create_intake(
     request: CreateIntakeRequest,
+    user_id: str = Query(...),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
@@ -42,7 +43,7 @@ async def create_intake(
     local date/time based on user's timezone preference.
     """
     service = WaterIntakeService(db)
-    timezone = await get_user_timezone(db)
+    tz = await get_user_timezone(db, user_id)
 
     timestamp = datetime.now(tz=ZoneInfo("UTC"))
 
@@ -50,17 +51,18 @@ async def create_intake(
     amount_oz = convert_to_oz(request.amount, request.unit)
 
     # Calculate local date and time
-    local_date, local_time = get_local_date_time(timestamp, timezone)
+    local_date, local_time = get_local_date_time(timestamp, tz)
 
     # Create intake document
     intake_data = WaterIntakeDocument(
+        user_id=user_id,
         amount_oz=amount_oz,
         original_amount=request.amount,
         original_unit=request.unit,
         timestamp=timestamp,
         local_date=local_date,
         local_time=local_time,
-        timezone=timezone,
+        timezone=tz,
         notes=request.notes,
     )
 
@@ -75,6 +77,7 @@ async def create_intake(
 
 @router.get("/intakes", response_model=list[IntakeResponse])
 async def list_intakes(
+    user_id: str = Query(...),
     date: str | None = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
     start_date: str | None = Query(None, description="Filter by date range start"),
     end_date: str | None = Query(None, description="Filter by date range end"),
@@ -90,6 +93,7 @@ async def list_intakes(
     service = WaterIntakeService(db)
 
     intakes = await service.list_intakes(
+        user_id=user_id,
         local_date=date,
         start_date=start_date,
         end_date=end_date,
@@ -109,13 +113,14 @@ async def list_intakes(
 @router.get("/intakes/{intake_id}", response_model=IntakeResponse)
 async def get_intake(
     intake_id: str,
+    user_id: str = Query(...),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Get a specific water intake entry by ID."""
     service = WaterIntakeService(db)
 
     try:
-        intake = await service.get_intake(intake_id)
+        intake = await service.get_intake(intake_id, user_id)
     except InvalidId as err:
         raise HTTPException(status_code=400, detail="Invalid intake ID format") from err
 
@@ -132,6 +137,7 @@ async def get_intake(
 async def update_intake_full(
     intake_id: str,
     request: CreateIntakeRequest,
+    user_id: str = Query(...),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
@@ -140,11 +146,11 @@ async def update_intake_full(
     Replaces all fields with the provided data.
     """
     service = WaterIntakeService(db)
-    timezone = await get_user_timezone(db)
+    tz = await get_user_timezone(db, user_id)
 
     # Check if intake exists
     try:
-        existing_intake = await service.get_intake(intake_id)
+        existing_intake = await service.get_intake(intake_id, user_id)
     except InvalidId as err:
         raise HTTPException(status_code=400, detail="Invalid intake ID format") from err
 
@@ -160,7 +166,7 @@ async def update_intake_full(
     amount_oz = convert_to_oz(request.amount, request.unit)
 
     # Calculate local date and time
-    local_date, local_time = get_local_date_time(timestamp, timezone)
+    local_date, local_time = get_local_date_time(timestamp, tz)
 
     # Update data
     update_data = {
@@ -170,11 +176,11 @@ async def update_intake_full(
         "timestamp": timestamp,
         "local_date": local_date,
         "local_time": local_time,
-        "timezone": timezone,
+        "timezone": tz,
         "notes": request.notes,
     }
 
-    updated_intake = await service.update_intake(intake_id, update_data)
+    updated_intake = await service.update_intake(intake_id, update_data, user_id)
     if not updated_intake:
         raise HTTPException(status_code=500, detail="Failed to update intake")
 
@@ -188,6 +194,7 @@ async def update_intake_full(
 async def update_intake_partial(
     intake_id: str,
     request: UpdateIntakeRequest,
+    user_id: str = Query(...),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
@@ -199,7 +206,7 @@ async def update_intake_partial(
 
     # Check if intake exists
     try:
-        existing_intake = await service.get_intake(intake_id)
+        existing_intake = await service.get_intake(intake_id, user_id)
     except InvalidId as err:
         raise HTTPException(status_code=400, detail="Invalid intake ID format") from err
 
@@ -225,7 +232,7 @@ async def update_intake_partial(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    updated_intake = await service.update_intake(intake_id, update_data)
+    updated_intake = await service.update_intake(intake_id, update_data, user_id)
     if not updated_intake:
         raise HTTPException(status_code=500, detail="Failed to update intake")
 
@@ -238,13 +245,14 @@ async def update_intake_partial(
 @router.delete("/intakes/{intake_id}", status_code=204)
 async def delete_intake(
     intake_id: str,
+    user_id: str = Query(...),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Delete a water intake entry."""
     service = WaterIntakeService(db)
 
     try:
-        deleted = await service.delete_intake(intake_id)
+        deleted = await service.delete_intake(intake_id, user_id)
     except InvalidId as err:
         raise HTTPException(status_code=400, detail="Invalid intake ID format") from err
 
