@@ -4,8 +4,11 @@ import httpx
 import mongomock_motor
 import pytest
 from httpx import ASGITransport
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from watersvc.app import app
+from watersvc.config import get_settings
+from watersvc.database.connection import db as motor_db
 from watersvc.database.connection import get_database
 
 
@@ -25,9 +28,7 @@ async def client(mock_db):
 
     app.dependency_overrides[get_database] = override_get_database
 
-    async with httpx.AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -36,11 +37,6 @@ async def client(mock_db):
 @pytest.fixture
 async def integration_client():
     """Async test client using real MongoDB. Auto-skips if unreachable."""
-    from motor.motor_asyncio import AsyncIOMotorClient
-
-    from watersvc.config import get_settings
-    from watersvc.database.connection import db as motor_db
-
     try:
         settings = get_settings()
         uri = settings.mongodb_uri
@@ -64,9 +60,7 @@ async def integration_client():
     mc.close()
     motor_db.client = None  # reset singleton so app opens a fresh connection
 
-    async with httpx.AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     # Post-test cleanup
