@@ -9,13 +9,13 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
+from watersvc.utils.conversions import convert_from_oz, convert_to_oz
 from watersvc.utils.schemas import (
     CreateIntakeRequest,
     IntakeResponse,
     UpdateIntakeRequest,
     WaterIntakeDocument,
 )
-from watersvc.utils.conversions import convert_to_oz, convert_from_oz
 from watersvc.utils.timezone import get_local_date_time
 
 router = APIRouter()
@@ -134,60 +134,6 @@ async def get_intake(
         raise HTTPException(status_code=404, detail="Intake entry not found")
 
     return build_intake_response(intake, preferred_unit)
-
-
-@router.put("/intakes/{intake_id}", response_model=IntakeResponse)
-async def update_intake_full(
-    intake_id: str,
-    request: CreateIntakeRequest,
-    user_id: str = Query(...),
-    db: AsyncIOMotorDatabase = Depends(get_database),
-):
-    """
-    Update a water intake entry (full update).
-
-    Replaces all fields with the provided data.
-    """
-    service = WaterIntakeService(db)
-    tz, preferred_unit = await get_user_prefs(db, user_id)
-
-    # Check if intake exists
-    try:
-        existing_intake = await service.get_intake(intake_id, user_id)
-    except InvalidId as err:
-        raise HTTPException(status_code=400, detail="Invalid intake ID format") from err
-
-    if not existing_intake:
-        raise HTTPException(status_code=404, detail="Intake entry not found")
-
-    # Preserve the original intake timestamp
-    timestamp = existing_intake["timestamp"]
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=ZoneInfo("UTC"))
-
-    # Convert amount to ounces
-    amount_oz = convert_to_oz(request.amount, request.unit)
-
-    # Calculate local date and time
-    local_date, local_time = get_local_date_time(timestamp, tz)
-
-    # Update data
-    update_data = {
-        "amount_oz": amount_oz,
-        "original_amount": request.amount,
-        "original_unit": request.unit,
-        "timestamp": timestamp,
-        "local_date": local_date,
-        "local_time": local_time,
-        "timezone": tz,
-        "notes": request.notes,
-    }
-
-    updated_intake = await service.update_intake(intake_id, update_data, user_id)
-    if not updated_intake:
-        raise HTTPException(status_code=500, detail="Failed to update intake")
-
-    return build_intake_response(updated_intake, preferred_unit)
 
 
 @router.patch("/intakes/{intake_id}", response_model=IntakeResponse)

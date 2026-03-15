@@ -62,36 +62,6 @@ async def get_profile(
     return ProfileResponse(**profile)
 
 
-@router.put("/profile/{user_id}", response_model=ProfileResponse)
-async def update_profile_full(
-    user_id: str,
-    request: InitializeProfileRequest,
-    db: AsyncIOMotorDatabase = Depends(get_database),
-):
-    """Update user profile (full update)."""
-    service = WaterIntakeService(db)
-
-    existing_profile = await service.get_profile(user_id)
-    if not existing_profile:
-        raise HTTPException(status_code=404, detail="Profile not found.")
-
-    update_data = {
-        "username": request.username,
-        "email": request.email,
-        "daily_goal_oz": request.daily_goal_oz,
-        "preferences": UserPreferences(
-            preferred_unit=request.preferred_unit,
-            timezone=request.timezone,
-        ).model_dump(),
-    }
-
-    updated_profile = await service.update_profile(user_id, update_data)
-    if not updated_profile:
-        raise HTTPException(status_code=500, detail="Failed to update profile")
-
-    return ProfileResponse(**updated_profile)
-
-
 @router.patch("/profile/{user_id}", response_model=ProfileResponse)
 async def update_profile_partial(
     user_id: str,

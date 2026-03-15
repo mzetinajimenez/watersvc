@@ -75,10 +75,10 @@ async def test_get_intake_invalid_id(client):
     assert response.status_code == 400
 
 
-async def test_put_intake(client):
+async def test_patch_intake_full(client):
     create_resp = await client.post(f"/api/intakes{BASE}", json={"amount": 8.0, "unit": "oz"})
     intake_id = create_resp.json()["id"]
-    response = await client.put(
+    response = await client.patch(
         f"/api/intakes/{intake_id}{BASE}",
         json={"amount": 16.0, "unit": "oz"},
     )

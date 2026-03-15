@@ -40,17 +40,14 @@ async def test_get_profile(client):
     assert data["username"] == "testuser"
 
 
-async def test_put_profile(client):
+async def test_patch_profile_full(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
-    response = await client.put(
+    response = await client.patch(
         "/api/profile/testuser",
         json={
-            "user_id": "testuser",
             "username": "newuser",
             "email": "new@example.com",
             "daily_goal_oz": 80.0,
-            "preferred_unit": "ml",
-            "timezone": "America/New_York",
         },
     )
     assert response.status_code == 200
