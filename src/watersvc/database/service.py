@@ -52,9 +52,7 @@ class WaterIntakeService:
         """Get single intake entry by ID."""
         return await self.intakes.find_one({"_id": ObjectId(intake_id), "user_id": user_id})
 
-    async def update_intake(
-        self, intake_id: str, update_data: dict, user_id: str
-    ) -> dict | None:
+    async def update_intake(self, intake_id: str, update_data: dict, user_id: str) -> dict | None:
         """Update water intake entry."""
         update_data["updated_at"] = datetime.utcnow()
         result = await self.intakes.find_one_and_update(
