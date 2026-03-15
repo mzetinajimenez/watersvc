@@ -104,6 +104,8 @@ class IntakeResponse(BaseModel):
     notes: str | None
     created_at: datetime
     updated_at: datetime
+    display_amount: float
+    display_unit: str
 
 
 class DailyStatsResponse(BaseModel):
@@ -121,6 +123,7 @@ class DailyStatsResponse(BaseModel):
 class DailyBreakdown(BaseModel):
     date: str
     total_oz: float
+    total_display: float
     entry_count: int
     met_goal: bool
 
@@ -133,6 +136,7 @@ class PeriodStatsResponse(BaseModel):
     total_display: float
     display_unit: str
     daily_average_oz: float
+    daily_average_display: float
     days_met_goal: int
     total_days: int
     goal_completion_rate: float

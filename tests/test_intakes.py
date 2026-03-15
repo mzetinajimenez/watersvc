@@ -23,8 +23,8 @@ async def test_create_intake_ml(client):
     response = await client.post(f"/api/intakes{BASE}", json={"amount": 300.0, "unit": "ml"})
     assert response.status_code == 201
     data = response.json()
-    # 300 ml * 0.033814 oz/ml
-    assert data["amount_oz"] == pytest.approx(300 * 0.033814, rel=1e-3)
+    # 300 ml / 29.5735295625 ml per oz (exact SI)
+    assert data["amount_oz"] == pytest.approx(300 / 29.5735295625, rel=1e-3)
     assert data["original_unit"] == "ml"
 
 

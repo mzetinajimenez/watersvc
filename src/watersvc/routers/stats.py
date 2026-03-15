@@ -8,11 +8,11 @@ from watersvc.database.service import WaterIntakeService
 from watersvc.utils.schemas import (
     DailyBreakdown,
     DailyStatsResponse,
-    IntakeResponse,
     PeriodStatsResponse,
 )
 from watersvc.utils.conversions import convert_from_oz
 from watersvc.utils.timezone import get_date_n_days_ago, get_today_local
+from watersvc.routers.intakes import build_intake_response
 
 router = APIRouter()
 
@@ -78,13 +78,7 @@ async def get_daily_stats(
     entries = None
     if include_entries:
         intakes = await service.list_intakes(user_id=user_id, local_date=target_date, limit=500)
-        entries = [
-            IntakeResponse(
-                id=str(intake["_id"]),
-                **{k: v for k, v in intake.items() if k != "_id"},
-            )
-            for intake in intakes
-        ]
+        entries = [build_intake_response(intake, display_unit) for intake in intakes]
 
     return DailyStatsResponse(
         date=target_date,
@@ -149,6 +143,7 @@ async def get_weekly_stats(
                 DailyBreakdown(
                     date=current_date,
                     total_oz=day_stat["total_oz"],
+                    total_display=round(convert_from_oz(day_stat["total_oz"], display_unit), 4),
                     entry_count=day_stat["count"],
                     met_goal=day_stat["total_oz"] >= daily_goal_oz,
                 )
@@ -158,6 +153,7 @@ async def get_weekly_stats(
                 DailyBreakdown(
                     date=current_date,
                     total_oz=0.0,
+                    total_display=0.0,
                     entry_count=0,
                     met_goal=False,
                 )
@@ -171,6 +167,7 @@ async def get_weekly_stats(
         total_display=round(total_display, 2),
         display_unit=display_unit,
         daily_average_oz=round(daily_average_oz, 2),
+        daily_average_display=round(convert_from_oz(daily_average_oz, display_unit), 4),
         days_met_goal=days_met_goal,
         total_days=total_days,
         goal_completion_rate=round(goal_completion_rate, 2),
@@ -228,6 +225,7 @@ async def get_monthly_stats(
                 DailyBreakdown(
                     date=current_date,
                     total_oz=day_stat["total_oz"],
+                    total_display=round(convert_from_oz(day_stat["total_oz"], display_unit), 4),
                     entry_count=day_stat["count"],
                     met_goal=day_stat["total_oz"] >= daily_goal_oz,
                 )
@@ -237,6 +235,7 @@ async def get_monthly_stats(
                 DailyBreakdown(
                     date=current_date,
                     total_oz=0.0,
+                    total_display=0.0,
                     entry_count=0,
                     met_goal=False,
                 )
@@ -250,6 +249,7 @@ async def get_monthly_stats(
         total_display=round(total_display, 2),
         display_unit=display_unit,
         daily_average_oz=round(daily_average_oz, 2),
+        daily_average_display=round(convert_from_oz(daily_average_oz, display_unit), 4),
         days_met_goal=days_met_goal,
         total_days=total_days,
         goal_completion_rate=round(goal_completion_rate, 2),

@@ -2,11 +2,13 @@
 
 # Conversion factors to/from ounces (oz)
 # All values represent how many oz are in 1 unit of the measurement
+_OZ_PER_ML = 1 / 29.5735295625  # exact SI: 1 fl oz = 29.5735295625 ml
+
 UNIT_CONVERSIONS = {
-    "oz": 1.0,  # 1 oz = 1 oz (base unit)
-    "ml": 0.033814,  # 1 ml = 0.033814 oz
-    "l": 33.814,  # 1 L = 33.814 oz
-    "cups": 8.0,  # 1 cup = 8 oz
+    "oz": 1.0,
+    "ml": _OZ_PER_ML,
+    "l": _OZ_PER_ML * 1000,
+    "cups": 8.0,  # exact: 1 cup = 8 fl oz
 }
 
 VALID_UNITS = set(UNIT_CONVERSIONS.keys())

@@ -1,6 +1,6 @@
 """Water intake CRUD API routes."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from bson.errors import InvalidId
@@ -15,19 +15,32 @@ from watersvc.utils.schemas import (
     UpdateIntakeRequest,
     WaterIntakeDocument,
 )
-from watersvc.utils.conversions import convert_to_oz
+from watersvc.utils.conversions import convert_to_oz, convert_from_oz
 from watersvc.utils.timezone import get_local_date_time
 
 router = APIRouter()
 
 
-async def get_user_timezone(db: AsyncIOMotorDatabase, user_id: str) -> str:
-    """Get user's timezone from profile, fallback to UTC."""
+async def get_user_prefs(db: AsyncIOMotorDatabase, user_id: str) -> tuple[str, str]:
+    """Get user timezone and preferred_unit from profile. Returns (timezone, preferred_unit)."""
     service = WaterIntakeService(db)
     profile = await service.get_profile(user_id)
-    if profile and "preferences" in profile:
-        return profile["preferences"].get("timezone", "UTC")
-    return "UTC"
+    prefs = profile.get("preferences", {}) if profile else {}
+    return prefs.get("timezone", "UTC"), prefs.get("preferred_unit", "oz")
+
+
+def build_intake_response(intake: dict, preferred_unit: str) -> IntakeResponse:
+    """Build IntakeResponse with display_amount in the preferred unit."""
+    if intake["original_unit"] == preferred_unit:
+        display_amount = intake["original_amount"]
+    else:
+        display_amount = convert_from_oz(intake["amount_oz"], preferred_unit)
+    return IntakeResponse(
+        id=str(intake["_id"]),
+        display_amount=round(display_amount, 4),
+        display_unit=preferred_unit,
+        **{k: v for k, v in intake.items() if k != "_id"},
+    )
 
 
 @router.post("/intakes", response_model=IntakeResponse, status_code=201)
@@ -43,7 +56,7 @@ async def create_intake(
     local date/time based on user's timezone preference.
     """
     service = WaterIntakeService(db)
-    tz = await get_user_timezone(db, user_id)
+    tz, preferred_unit = await get_user_prefs(db, user_id)
 
     timestamp = datetime.now(tz=ZoneInfo("UTC"))
 
@@ -69,10 +82,7 @@ async def create_intake(
     # Insert into database
     created_intake = await service.create_intake(intake_data.model_dump())
 
-    return IntakeResponse(
-        id=str(created_intake["_id"]),
-        **{k: v for k, v in created_intake.items() if k != "_id"},
-    )
+    return build_intake_response(created_intake, preferred_unit)
 
 
 @router.get("/intakes", response_model=list[IntakeResponse])
@@ -91,6 +101,7 @@ async def list_intakes(
     Supports filtering by specific date or date range, with pagination.
     """
     service = WaterIntakeService(db)
+    _, preferred_unit = await get_user_prefs(db, user_id)
 
     intakes = await service.list_intakes(
         user_id=user_id,
@@ -101,13 +112,7 @@ async def list_intakes(
         offset=offset,
     )
 
-    return [
-        IntakeResponse(
-            id=str(intake["_id"]),
-            **{k: v for k, v in intake.items() if k != "_id"},
-        )
-        for intake in intakes
-    ]
+    return [build_intake_response(intake, preferred_unit) for intake in intakes]
 
 
 @router.get("/intakes/{intake_id}", response_model=IntakeResponse)
@@ -118,6 +123,7 @@ async def get_intake(
 ):
     """Get a specific water intake entry by ID."""
     service = WaterIntakeService(db)
+    _, preferred_unit = await get_user_prefs(db, user_id)
 
     try:
         intake = await service.get_intake(intake_id, user_id)
@@ -127,10 +133,7 @@ async def get_intake(
     if not intake:
         raise HTTPException(status_code=404, detail="Intake entry not found")
 
-    return IntakeResponse(
-        id=str(intake["_id"]),
-        **{k: v for k, v in intake.items() if k != "_id"},
-    )
+    return build_intake_response(intake, preferred_unit)
 
 
 @router.put("/intakes/{intake_id}", response_model=IntakeResponse)
@@ -146,7 +149,7 @@ async def update_intake_full(
     Replaces all fields with the provided data.
     """
     service = WaterIntakeService(db)
-    tz = await get_user_timezone(db, user_id)
+    tz, preferred_unit = await get_user_prefs(db, user_id)
 
     # Check if intake exists
     try:
@@ -184,10 +187,7 @@ async def update_intake_full(
     if not updated_intake:
         raise HTTPException(status_code=500, detail="Failed to update intake")
 
-    return IntakeResponse(
-        id=str(updated_intake["_id"]),
-        **{k: v for k, v in updated_intake.items() if k != "_id"},
-    )
+    return build_intake_response(updated_intake, preferred_unit)
 
 
 @router.patch("/intakes/{intake_id}", response_model=IntakeResponse)
@@ -203,6 +203,7 @@ async def update_intake_partial(
     Updates only the provided fields, leaving others unchanged.
     """
     service = WaterIntakeService(db)
+    _, preferred_unit = await get_user_prefs(db, user_id)
 
     # Check if intake exists
     try:
@@ -236,10 +237,7 @@ async def update_intake_partial(
     if not updated_intake:
         raise HTTPException(status_code=500, detail="Failed to update intake")
 
-    return IntakeResponse(
-        id=str(updated_intake["_id"]),
-        **{k: v for k, v in updated_intake.items() if k != "_id"},
-    )
+    return build_intake_response(updated_intake, preferred_unit)
 
 
 @router.delete("/intakes/{intake_id}", status_code=204)
