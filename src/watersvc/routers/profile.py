@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from watersvc.auth.dependencies import get_current_user
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
 from watersvc.utils.schemas import (
@@ -19,20 +20,21 @@ router = APIRouter()
 @router.post("/profile", response_model=ProfileResponse, status_code=201)
 async def create_profile(
     request: InitializeProfileRequest,
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Create a new user profile."""
     service = WaterIntakeService(db)
 
-    existing_profile = await service.get_profile(request.user_id)
+    existing_profile = await service.get_profile(user_id)
     if existing_profile:
         raise HTTPException(
             status_code=400,
-            detail="Profile already exists. Use PATCH /profile/{user_id} to update.",
+            detail="Profile already exists. Use PATCH /profile to update.",
         )
 
     profile_data = UserProfileDocument(
-        user_id=request.user_id,
+        user_id=user_id,
         username=request.username,
         email=request.email,
         daily_goal_oz=request.daily_goal_oz,
@@ -47,9 +49,9 @@ async def create_profile(
     return ProfileResponse(**created_profile)
 
 
-@router.get("/profile/{user_id}", response_model=ProfileResponse)
+@router.get("/profile", response_model=ProfileResponse)
 async def get_profile(
-    user_id: str,
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Get user profile."""
@@ -62,10 +64,10 @@ async def get_profile(
     return ProfileResponse(**profile)
 
 
-@router.patch("/profile/{user_id}", response_model=ProfileResponse)
+@router.patch("/profile", response_model=ProfileResponse)
 async def update_profile_partial(
-    user_id: str,
     request: UpdateProfileRequest,
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Update user profile (partial update)."""
@@ -95,9 +97,9 @@ async def update_profile_partial(
     return ProfileResponse(**updated_profile)
 
 
-@router.delete("/profile/{user_id}", status_code=204)
+@router.delete("/profile", status_code=204)
 async def delete_profile(
-    user_id: str,
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Delete user profile."""

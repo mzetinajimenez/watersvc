@@ -48,7 +48,6 @@ class WaterIntakeDocument(BaseModel):
 
 
 class InitializeProfileRequest(BaseModel):
-    user_id: str
     username: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=3, max_length=255)
     daily_goal_oz: float = Field(default=64.0, gt=0, le=1000)
@@ -118,6 +117,26 @@ class DailyStatsResponse(BaseModel):
     progress_percent: float
     entry_count: int
     entries: list[IntakeResponse] | None = None
+
+
+# --- Auth ---
+
+
+class AnonymousAuthRequest(BaseModel):
+    device_id: str = Field(min_length=1, max_length=255)
+
+
+class ProviderAuthRequest(BaseModel):
+    identity_token: str = Field(min_length=1)
+    email: str | None = None
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: str
+    email: str | None = None
+    is_new_user: bool
 
 
 class DailyBreakdown(BaseModel):

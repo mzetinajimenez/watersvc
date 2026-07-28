@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from watersvc.auth.dependencies import get_current_user
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
 from watersvc.routers.intakes import build_intake_response
@@ -40,7 +41,7 @@ async def get_user_preferences(db: AsyncIOMotorDatabase, user_id: str) -> tuple[
 
 @router.get("/stats/daily", response_model=DailyStatsResponse)
 async def get_daily_stats(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     date: str | None = Query(None, description="Date in YYYY-MM-DD format (default: today)"),
     unit: str | None = Query(
         None, description="Unit for display values (default: user preference)"
@@ -95,7 +96,7 @@ async def get_daily_stats(
 
 @router.get("/stats/weekly", response_model=PeriodStatsResponse)
 async def get_weekly_stats(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     date: str | None = Query(None, description="Reference date (default: today)"),
     unit: str | None = Query(
         None, description="Unit for display values (default: user preference)"
@@ -177,7 +178,7 @@ async def get_weekly_stats(
 
 @router.get("/stats/monthly", response_model=PeriodStatsResponse)
 async def get_monthly_stats(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     date: str | None = Query(None, description="Reference date (default: today)"),
     unit: str | None = Query(
         None, description="Unit for display values (default: user preference)"

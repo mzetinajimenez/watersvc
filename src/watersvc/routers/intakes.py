@@ -7,6 +7,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from watersvc.auth.dependencies import get_current_user
 from watersvc.database.connection import get_database
 from watersvc.database.service import WaterIntakeService
 from watersvc.utils.conversions import convert_from_oz, convert_to_oz
@@ -46,7 +47,7 @@ def build_intake_response(intake: dict, preferred_unit: str) -> IntakeResponse:
 @router.post("/intakes", response_model=IntakeResponse, status_code=201)
 async def create_intake(
     request: CreateIntakeRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
@@ -87,7 +88,7 @@ async def create_intake(
 
 @router.get("/intakes", response_model=list[IntakeResponse])
 async def list_intakes(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     date: str | None = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
     start_date: str | None = Query(None, description="Filter by date range start"),
     end_date: str | None = Query(None, description="Filter by date range end"),
@@ -118,7 +119,7 @@ async def list_intakes(
 @router.get("/intakes/{intake_id}", response_model=IntakeResponse)
 async def get_intake(
     intake_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Get a specific water intake entry by ID."""
@@ -140,7 +141,7 @@ async def get_intake(
 async def update_intake_partial(
     intake_id: str,
     request: UpdateIntakeRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
@@ -189,7 +190,7 @@ async def update_intake_partial(
 @router.delete("/intakes/{intake_id}", status_code=204)
 async def delete_intake(
     intake_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Delete a water intake entry."""

@@ -1,6 +1,6 @@
 """Database service layer for water intake tracking operations."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -14,6 +14,7 @@ class WaterIntakeService:
         self.db = db
         self.intakes = db.water_intakes
         self.profiles = db.user_profile
+        self.users = db.users
 
     # Profile operations
     async def get_profile(self, user_id: str) -> dict | None:
@@ -28,7 +29,7 @@ class WaterIntakeService:
 
     async def update_profile(self, user_id: str, update_data: dict) -> dict | None:
         """Update user profile with new data."""
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(tz=timezone.utc)
         result = await self.profiles.find_one_and_update(
             {"user_id": user_id},
             {"$set": update_data},
@@ -54,7 +55,7 @@ class WaterIntakeService:
 
     async def update_intake(self, intake_id: str, update_data: dict, user_id: str) -> dict | None:
         """Update water intake entry."""
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(tz=timezone.utc)
         result = await self.intakes.find_one_and_update(
             {"_id": ObjectId(intake_id), "user_id": user_id},
             {"$set": update_data},
@@ -171,6 +172,35 @@ class WaterIntakeService:
         results = await self.intakes.aggregate(pipeline).to_list(length=None)  # type: ignore[arg-type]
         return [{"date": r["_id"], "total_oz": r["total_oz"], "count": r["count"]} for r in results]
 
+    # User (auth) operations
+    async def find_user_by_provider(self, provider: str, provider_id: str) -> dict | None:
+        """Find a user by provider type and provider-specific ID."""
+        return await self.users.find_one(
+            {"providers": {"$elemMatch": {"provider": provider, "provider_id": provider_id}}}
+        )
+
+    async def create_user(self, user_data: dict) -> dict:
+        """Create a new user document."""
+        result = await self.users.insert_one(user_data)
+        user_data["_id"] = result.inserted_id
+        return user_data
+
+    async def add_provider_to_user(
+        self, user_id: str, provider_entry: dict, email: str | None = None
+    ) -> dict | None:
+        """Add a provider entry to an existing user's providers array."""
+        update: dict = {
+            "$push": {"providers": provider_entry},
+            "$set": {"updated_at": datetime.now(tz=timezone.utc)},
+        }
+        if email is not None:
+            update["$set"]["email"] = email
+        return await self.users.find_one_and_update(
+            {"user_id": user_id},
+            update,
+            return_document=True,
+        )
+
     # Index creation (call during initialization or migration)
     async def ensure_indexes(self) -> None:
         """Create necessary indexes for optimal query performance."""
@@ -180,3 +210,9 @@ class WaterIntakeService:
         await self.intakes.create_index([("user_id", 1), ("timestamp", -1)])
         # Index for user_profile
         await self.profiles.create_index([("user_id", 1)], unique=True)
+        # User collection indexes
+        await self.users.create_index([("user_id", 1)], unique=True)
+        await self.users.create_index(
+            [("providers.provider", 1), ("providers.provider_id", 1)],
+            unique=True,
+        )

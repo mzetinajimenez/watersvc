@@ -7,9 +7,12 @@ from httpx import ASGITransport
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from watersvc.app import app
+from watersvc.auth.dependencies import get_current_user
 from watersvc.config import get_settings
 from watersvc.database.connection import db as motor_db
 from watersvc.database.connection import get_database
+
+TEST_USER_ID = "testuser"
 
 
 @pytest.fixture
@@ -21,12 +24,16 @@ async def mock_db():
 
 @pytest.fixture
 async def client(mock_db):
-    """Async test client with mocked database dependency."""
+    """Async test client with mocked database and auth dependency."""
 
     async def override_get_database():
         return mock_db
 
+    async def override_get_current_user():
+        return TEST_USER_ID
+
     app.dependency_overrides[get_database] = override_get_database
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac

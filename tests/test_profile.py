@@ -1,7 +1,6 @@
 """Integration tests for profile API routes."""
 
 PROFILE_PAYLOAD = {
-    "user_id": "testuser",
     "username": "testuser",
     "email": "test@example.com",
     "daily_goal_oz": 64.0,
@@ -28,13 +27,13 @@ async def test_create_profile_duplicate(client):
 
 
 async def test_get_profile_not_found(client):
-    response = await client.get("/api/profile/testuser")
+    response = await client.get("/api/profile")
     assert response.status_code == 404
 
 
 async def test_get_profile(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
-    response = await client.get("/api/profile/testuser")
+    response = await client.get("/api/profile")
     assert response.status_code == 200
     data = response.json()
     assert data["username"] == "testuser"
@@ -43,7 +42,7 @@ async def test_get_profile(client):
 async def test_patch_profile_full(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
     response = await client.patch(
-        "/api/profile/testuser",
+        "/api/profile",
         json={
             "username": "newuser",
             "email": "new@example.com",
@@ -59,7 +58,7 @@ async def test_patch_profile_full(client):
 
 async def test_patch_profile(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
-    response = await client.patch("/api/profile/testuser", json={"username": "patcheduser"})
+    response = await client.patch("/api/profile", json={"username": "patcheduser"})
     assert response.status_code == 200
     data = response.json()
     assert data["username"] == "patcheduser"
@@ -68,23 +67,23 @@ async def test_patch_profile(client):
 
 async def test_patch_profile_empty_body(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
-    response = await client.patch("/api/profile/testuser", json={})
+    response = await client.patch("/api/profile", json={})
     assert response.status_code == 400
 
 
 async def test_delete_profile_success(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
-    response = await client.delete("/api/profile/testuser")
+    response = await client.delete("/api/profile")
     assert response.status_code == 204
 
 
 async def test_delete_profile_not_found(client):
-    response = await client.delete("/api/profile/testuser")
+    response = await client.delete("/api/profile")
     assert response.status_code == 404
 
 
 async def test_delete_profile_then_get(client):
     await client.post("/api/profile", json=PROFILE_PAYLOAD)
-    await client.delete("/api/profile/testuser")
-    response = await client.get("/api/profile/testuser")
+    await client.delete("/api/profile")
+    response = await client.get("/api/profile")
     assert response.status_code == 404
